@@ -127,6 +127,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+data/
+.idea/
+
 
 # Spyder project settings
 .spyderproject
@@ -158,3 +161,8 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+data/SemEval2017/docsutf8/S0010938X1500195X.txt
+data/SemEval2017/keys/S0010938X12001163.key
+data/SemEval2017/keys/S0010938X1500195X.key
+data/SemEval2017/keys/S0010938X1530161X.key
+.DS_Store
