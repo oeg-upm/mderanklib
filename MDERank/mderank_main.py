@@ -404,7 +404,7 @@ def remove (text):
     text = re.sub(remove_chars, '', text)
     re_text_len = len(text.split())
     if text_len != re_text_len:
-        print(text)
+        #print(text)
         return True
     else:
         return False
@@ -434,7 +434,7 @@ def find_candidate_mention(tok_candidate,ori_tokens):
     can_token = ' '.join(tok_candidate)
 
     conteo = can_token.count('Ġ')
-    print(tok_candidate,conteo)
+    #print(tok_candidate,conteo)
     if model_type == 'bert':
         mask = ' '.join(['[MASK]'] * candidate_len)
     else:
@@ -494,10 +494,10 @@ def generate_absent_doc(ori_encode_dict, candidates, idx):
             count +=1
             ori_doc = ' '.join(ori_tokens)
             can_token = ' '.join(tok_candidate)
-            print("do not find: ", candidate)
-            print("candidate:", can_token)
+            #print("do not find: ", candidate)
+            #print("candidate:", can_token)
 
-            print("ori_docs: ", ori_doc)
+            #print("ori_docs: ", ori_doc)
 
             continue
 
@@ -645,7 +645,7 @@ def keyphrases_selection(doc_list, labels_stemed, labels,  model, dataloader, lo
         ranked_keyphrases = doc_results.sort_values(by='score')
         top_k = ranked_keyphrases.reset_index(drop = True)
         top_k_can = top_k.loc[:, ['candidate']].values.tolist()
-        print(top_k)
+        #print(top_k)
 
         candidates_set = set()
         candidates_dedup = []
@@ -894,10 +894,10 @@ if __name__ == '__main__':
         docs_pairs.extend(doc_pairs)
         t_n +=count
 
-    print("candidate_num: ", candidate_num)
-    print("unmatched: ", t_n)
+    #print("candidate_num: ", candidate_num)
+    #print("unmatched: ", t_n)
     dataset = KPE_Dataset(docs_pairs)
-    print("examples: ", dataset.total_examples)
+    #print("examples: ", dataset.total_examples)
     dataloader = DataLoader(dataset, batch_size=args.batch_size)
 
     keyphrases_selection(doc_list, labels_stemed, labels, model, dataloader, log)
