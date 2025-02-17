@@ -8,6 +8,7 @@ from nltk.stem import PorterStemmer
 from stanfordcorenlp import StanfordCoreNLP
 from nltk.corpus import stopwords
 import matplotlib.pyplot as plt
+import nltk
 
 
 porter = PorterStemmer()
@@ -283,6 +284,7 @@ x_axis = {}
 y_axis = {}
 max_length_list = {}
 all_max_length = 0
+labels_stemed=[]
 for dataset_name in figure_data:
     if dataset_name == "SemEval2017":
         data, referneces = get_semeval2017_data(dataset_dir + "/SemEval2017/docsutf8", dataset_dir + "/SemEval2017/keys")
@@ -301,7 +303,7 @@ for dataset_name in figure_data:
     print(len(data))
     print(len(referneces))
     labels = []
-    labels_stemed = []
+
     doc_list = []
     total_words_num = 0
     max_doc_length = 0

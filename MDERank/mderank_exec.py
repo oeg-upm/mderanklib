@@ -89,6 +89,21 @@ def remove_starting_articles(text):
     return text
 
 
+def write_results(lista, ruta_archivo):
+    """
+    Escribe los elementos de una lista en un archivo, uno por línea.
+
+    :param lista: Lista de elementos a escribir en el archivo.
+    :param ruta_archivo: Ruta completa del archivo donde se guardarán los elementos.
+    """
+    try:
+        with open(ruta_archivo, 'w', encoding='utf-8') as archivo:
+            for elemento in lista:
+                archivo.write(f"{elemento}\n")
+        print(f"Archivo guardado correctamente en: {ruta_archivo}")
+    except Exception as e:
+        print(f"Error al escribir el archivo: {e}")
+
 class InputTextObj:
     """Represent the input text in which we want to extract keyphrases"""
 
@@ -397,6 +412,25 @@ def get_semeval2017_data(data_path="data/SemEval2017/docsutf8",labels_path="data
     return data,labels
 
 
+def get_exec_dataset(data_path="data/exec_example"):
+
+    data={}
+    for dirname, dirnames, filenames in os.walk(data_path):
+        for fname in filenames:
+            left, right = fname.split('.')
+            infile = os.path.join(dirname, fname)
+            # f = open(infile, 'rb')
+            # text = f.read().decode('utf8')
+            with codecs.open(infile, "r", "utf-8") as fi:
+                text = fi.read()
+                text = text.replace("%", '')
+            text = clean_text(text,database="Semeval2017")
+            data[left] = text.lower()
+            # f.close()
+
+    return data
+
+
 def remove (text):
     #print(text)
     text_len = len(text.split())
@@ -570,7 +604,7 @@ def cls_emebddings(model_output):
     return doc_embeddings
 
 
-def keyphrases_selection(doc_list, labels_stemed, labels,  model, dataloader, log):
+def keyphrases_selection_exec(path, list_of_names,   model, dataloader, k_val , log):
 
     model.eval()
 
@@ -579,13 +613,9 @@ def keyphrases_selection(doc_list, labels_stemed, labels,  model, dataloader, lo
     cos_score_list = []
     doc_id_list = []
 
-    P = R = F1 = 0.0
-    num_c_5 = num_c_10 = num_c_15 = 0
-    num_e_5 = num_e_10 = num_e_15 = 0
-    num_s = 0
-    lamda = 0.0
 
-    for id, [ori_doc, masked_doc, doc_id] in enumerate(tqdm(dataloader,desc="Evaluating:")):
+
+    for id, [ori_doc, masked_doc, doc_id] in enumerate(tqdm(dataloader,desc="Executing:")):
         #print(ori_doc)
         ori_input_ids = torch.squeeze(ori_doc["input_ids"].to('cpu'),1)
         #ori_token_type_ids = ori_input_ids.clone()
@@ -658,57 +688,16 @@ def keyphrases_selection(doc_list, labels_stemed, labels,  model, dataloader, lo
                 candidates_dedup.append(temp)
 
 
-        log.logger.info("Sorted_Candidate: {} \n".format(top_k_can))
-        log.logger.info("Candidates_Dedup: {} \n".format(candidates_dedup))
+        #log.logger.info("Sorted_Candidate: {} \n".format(top_k_can))
+        #log.logger.info("Candidates_Dedup: {} \n".format(candidates_dedup))
 
         j = 0
-        Matched = candidates_dedup[:15]
-        for id, temp in enumerate(candidates_dedup[0:15]):
-            tokens = temp.split()
-            tt = ' '.join(porter.stem(t) for t in tokens)
-            if (tt in labels_stemed[i] or temp in labels[i]):
-                Matched[id] = [temp]
-                if (j < 5):
-                    num_c_5 += 1
-                    num_c_10 += 1
-                    num_c_15 += 1
-
-                elif (j < 10 and j >= 5):
-                    num_c_10 += 1
-                    num_c_15 += 1
-
-                elif (j < 15 and j >= 10):
-                    num_c_15 += 1
-            j += 1
-
+        Matched = candidates_dedup[:k_val]
+        Name= list_of_names[i]
+        write_results( Matched,os.path.join(path,str(Name)+'.key'))
         log.logger.info("TOP-K {}: {} \n".format(i, Matched))
-        log.logger.info("Reference {}: {} \n".format(i,labels[i]))
-
-        if (len(top_k[0:5]) == 5):
-            num_e_5 += 5
-        else:
-            num_e_5 += len(top_k[0:5])
-
-        if (len(top_k[0:10]) == 10):
-            num_e_10 += 10
-        else:
-            num_e_10 += len(top_k[0:10])
-
-        if (len(top_k[0:15]) == 15):
-            num_e_15 += 15
-        else:
-            num_e_15 += len(top_k[0:15])
-
-        num_s += len(labels[i])
 
 
-    #en_model
-    p, r, f = get_PRF(num_c_5, num_e_5, num_s)
-    print_PRF(p, r, f, 5)
-    p, r, f = get_PRF(num_c_10, num_e_10, num_s)
-    print_PRF(p, r, f, 10)
-    p, r, f = get_PRF(num_c_15, num_e_15, num_s)
-    print_PRF(p, r, f, 15)
 
 
 
@@ -765,6 +754,11 @@ if __name__ == '__main__':
                         type=str,
                         required=True,
                         help="Type of execution: eval or exec")
+    parser.add_argument("--k_value",
+                        default='15',
+                        type=str,
+                        required=True,
+                        help="K-elements to return")
 
     parser.add_argument("--model_name_or_path",
                         default='bert-uncased',
@@ -784,6 +778,7 @@ if __name__ == '__main__':
     log = Logger(args.log_dir + args.dataset_name + '.kpe.' + args.doc_embed_mode + '.log')
 
 
+    k_val = int(args.k_value)
 
     if args.local_rank == -1 or args.no_cuda:
         device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
@@ -794,29 +789,11 @@ if __name__ == '__main__':
 
     porter=nltk.PorterStemmer()
 
-    '''
-    if args.dataset_name =="SemEval2017":
-        data, referneces = get_semeval2017_data(args.dataset_dir + "/docsutf8", args.dataset_dir + "/keys")
-    if args.dataset_name =="SemEval2018":
-        data, referneces = get_semeval2017_data(args.dataset_dir + "/docsutf8", args.dataset_dir + "/keys")
-    elif args.dataset_name == "DUC2001":
-        data, referneces = get_duc2001_data(args.dataset_dir)
-    elif args.dataset_name == "nus" :
-        data, referneces = get_long_data(args.dataset_dir + "/nus_test.json")
-    elif args.dataset_name == "krapivin":
-        data, referneces = get_long_data(args.dataset_dir + "/krapivin_test.json")
-    elif args.dataset_name == "kp20k":
-        data, referneces = get_short_data(args.dataset_dir + "/kp20k_valid200_test.json")
-    elif args.dataset_name == "SemEval2010":
-        data, referneces = get_short_data(args.dataset_dir + "/semeval_test.json")
-    else:
-        data, referneces = get_inspec_data(args.dataset_dir)
-    '''
-    data, references = get_semeval2017_data(args.dataset_dir + "/docsutf8", args.dataset_dir + "/keys")
+
+    data = get_exec_dataset(args.dataset_dir)
     log.logger.info("Dataset")
     log.logger.info(data)
-    log.logger.info("References")
-    log.logger.info(references)
+
 
 
 
@@ -855,7 +832,7 @@ if __name__ == '__main__':
     docs_pairs = []
     doc_list = []
     labels = []
-    labels_stemed = []
+
     t_n = 0
     candidate_num = 0
 
@@ -867,25 +844,13 @@ if __name__ == '__main__':
 
 
 
+    list_of_names=[]
 
     ## EVALUATION??
     for idx, (key, doc) in enumerate(data.items()):
 
-
-        # Get stemmed labels and document segments
-        labels.append([ref.replace(" \n", "") for ref in references[key]])
-        print('labesls',labels)
-
-        labels_s = []
-        set_total_cans = set()
-        for l in references[key]:
-            tokens = l.split()
-            labels_s.append(' '.join(porter.stem(t) for t in tokens))
-
-        print('labels_s',labels_s)
         doc = ' '.join(doc.split()[:512])
-        labels_stemed.append(labels_s)
-        print(doc)
+        list_of_names.append(key)
         doc_list.append(doc)
 
         # Statistic on empty docs
@@ -931,7 +896,7 @@ if __name__ == '__main__':
     #print("examples: ", dataset.total_examples)
     dataloader = DataLoader(dataset, batch_size=args.batch_size)
 
-    keyphrases_selection(doc_list, labels_stemed, labels, model, dataloader, log)
+    keyphrases_selection_exec(args.dataset_dir, list_of_names,  model, dataloader,k_val, log)
     end = time.time()
 
 
